@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package modules.route_mpls.controlplane.routemplspb.v1;
+
+import "common/commonpb/v1/ipprefix.proto";
+import "common/commonpb/v1/ipaddr.proto";
+
+option go_package = "github.com/yanet-platform/yanet-module-route-mpls/controlplane/routemplspb/v1;routemplspb";
+
+service RouteMPLSService {
+  // Create mpls route module
+  rpc CreateConfig(CreateConfigRequest) returns (CreateConfigResponse);
+  // Update mpls route module
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  // Allows to delete config if it is not referenced
+  // by any pipeline.
+  rpc DeleteConfig(DeleteConfigRequest) returns (DeleteConfigResponse);
+  // Show specific ACL configuration
+  rpc ShowConfig(ShowConfigRequest) returns (ShowConfigResponse);
+  // List all ACL configurations across instances
+  rpc ListConfigs(ListConfigsRequest) returns (ListConfigsResponse);
+}
+
+message CreateConfigRequest {
+  string name = 1;
+  repeated Rule rules = 2;
+}
+
+message CreateConfigResponse {}
+
+message UpdateConfigRequest {
+  string name = 1;
+  repeated UpdateEvent updates = 2;
+}
+
+message UpdateEvent {
+  oneof event {
+    Rule update = 1;
+    // Matches by prefix, destination_ip, and label only. Every other
+    // nexthop field is ignored.
+    Rule withdraw = 2;
+  }
+}
+
+message UpdateConfigResponse {}
+
+message ShowConfigRequest { string name = 1; }
+
+message ShowConfigResponse {
+  string name = 1;
+  repeated Rule rules = 2;
+}
+
+message Rule {
+  common.commonpb.v1.IPPrefix prefix = 1;
+  NextHop nexthop = 2;
+}
+
+message NextHop {
+  ActionKind kind = 1;
+  // Accepted range: 0..1048575 (20 bits).
+  uint32 label = 2;
+  common.commonpb.v1.IPAddress source_ip = 3;      // host address
+  common.commonpb.v1.IPAddress destination_ip = 4; // host address
+  uint64 weight = 5;
+  string counter = 6;
+}
+
+enum ActionKind {
+  ACTION_KIND_NONE = 0;
+  ACTION_KIND_TUNNEL = 1;
+}
+
+// Delete config with specified name.
+message DeleteConfigRequest {
+  // Specifies module name and
+  // dataplane instance of acl agent to delete.
+  string name = 1;
+}
+
+message DeleteConfigResponse {}
+
+message ListConfigsRequest {}
+
+message ListConfigsResponse { repeated string configs = 1; }

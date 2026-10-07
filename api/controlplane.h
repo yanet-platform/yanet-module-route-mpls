@@ -1,0 +1,67 @@
+#pragma once
+
+#include <stdint.h>
+
+#include "common/network.h"
+#include "lib/filter/rule.h"
+
+#include "lib/counters/counters.h"
+
+#include "lib/errors/errors.h"
+
+#define ROUTE_MPLS_TYPE_NONE 0
+#define ROUTE_MPLS_TYPE_V4 1
+#define ROUTE_MPLS_TYPE_V6 2
+
+struct agent;
+struct cp_module;
+
+struct route_mpls_ip4_tunnel {
+	uint8_t src[4];
+	uint8_t dst[4];
+};
+
+struct route_mpls_ip6_tunnel {
+	uint8_t src[16];
+	uint8_t dst[16];
+};
+
+struct route_mpls_nexthop {
+	uint16_t kind;
+	uint16_t pad;
+	union {
+		struct route_mpls_ip4_tunnel ip4_tunnel;
+		struct route_mpls_ip6_tunnel ip6_tunnel;
+	};
+	uint32_t mpls_label;
+	uint64_t weight;
+	char counter[COUNTER_NAME_LEN];
+};
+
+struct route_mpls_rule {
+	struct filter_net4s net4s;
+	struct filter_net6s net6s;
+
+	struct route_mpls_nexthop *nexthops;
+	uint64_t nexthop_count;
+};
+
+struct cp_module *
+route_mpls_module_config_new(
+	struct agent *agent, const char *name, yanet_error **err
+);
+
+// Destroy the module when it is dangling, per cp_module_try_destroy.
+//
+// Returns -1 with errno EAGAIN while a live generation still references
+// the module; the caller must keep its handle and retry later.
+int
+route_mpls_module_config_free(struct cp_module *cp_module, yanet_error **err);
+
+int
+route_mpls_module_config_update(
+	struct cp_module *cp_module,
+	struct route_mpls_rule *route_mpls_rules,
+	uint64_t route_mpls_rule_count,
+	yanet_error **err
+);
