@@ -1,4 +1,4 @@
-package route_mpls
+package route_mpls_test
 
 import (
 	"errors"
@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/yanet-platform/yanet-module-route-mpls/bindings/go/croutempls"
+	route_mpls "github.com/yanet-platform/yanet-module-route-mpls/controlplane"
 	routemplspb "github.com/yanet-platform/yanet-module-route-mpls/controlplane/routemplspb/v1"
 	commonpb "github.com/yanet-platform/yanet2/common/commonpb/v1"
 	"github.com/yanet-platform/yanet2/controlplane/ffi"
@@ -29,7 +30,7 @@ func (m *mockModuleHandle) Free() error {
 
 type mockBackend struct{}
 
-func (m *mockBackend) UpdateModule(name string, rules []croutempls.Rule) (ModuleHandle, error) {
+func (m *mockBackend) UpdateModule(name string, rules []croutempls.Rule) (route_mpls.ModuleHandle, error) {
 	return &mockModuleHandle{}, nil
 }
 
@@ -42,7 +43,7 @@ type flakyBackend struct {
 	numCalls atomic.Int64
 }
 
-func (m *flakyBackend) UpdateModule(name string, rules []croutempls.Rule) (ModuleHandle, error) {
+func (m *flakyBackend) UpdateModule(name string, rules []croutempls.Rule) (route_mpls.ModuleHandle, error) {
 	if m.numCalls.Add(1) >= 2 {
 		return nil, errInjectedBackend
 	}
@@ -53,9 +54,9 @@ func (m *flakyBackend) DeleteModule(name string) error {
 	return nil
 }
 
-func newTestService(t *testing.T) *RouteMPLSService {
+func newTestService(t *testing.T) *route_mpls.RouteMPLSService {
 	t.Helper()
-	return NewRouteMPLSService(&mockBackend{})
+	return route_mpls.NewRouteMPLSService(&mockBackend{})
 }
 
 // makeRule builds a proto Rule for use in test requests.
@@ -349,7 +350,7 @@ func Test_RouteMPLSService_DeleteConfig_Refused(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := NewRouteMPLSService(&refusingDeleteBackend{err: tc.err})
+			svc := route_mpls.NewRouteMPLSService(&refusingDeleteBackend{err: tc.err})
 			ctx := t.Context()
 
 			_, err := svc.CreateConfig(ctx, &routemplspb.CreateConfigRequest{
@@ -370,7 +371,7 @@ func Test_RouteMPLSService_DeleteConfig_Refused(t *testing.T) {
 }
 
 func Test_RouteMPLSService_CreateConfig_BackendFailure(t *testing.T) {
-	svc := NewRouteMPLSService(&flakyBackend{})
+	svc := route_mpls.NewRouteMPLSService(&flakyBackend{})
 	ctx := t.Context()
 
 	// First call succeeds.
@@ -424,7 +425,7 @@ func Test_RouteMPLSService_UpdateConfig_FailedPublishLeavesPreviousIntact(t *tes
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := NewRouteMPLSService(&flakyBackend{})
+			svc := route_mpls.NewRouteMPLSService(&flakyBackend{})
 			ctx := t.Context()
 
 			_, err := svc.CreateConfig(ctx, &routemplspb.CreateConfigRequest{
